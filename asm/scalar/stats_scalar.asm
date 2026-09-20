@@ -76,7 +76,7 @@ compute_stats:
     sub     rsp, 8               ; alinear stack a 16 bytes antes de call
 
     ; Guardar argumentos en registros para preservarlos con la llamada a sum_array
-    mov     rbx, rdi            ; rdx = arr
+    mov     rbx, rdi            ; rbx = arr
     mov     r12d, esi           ; r12 = n,     r12d usa la parte baja de r12 para operaciones de 32 bits      
     mov     r13, rdx            ; r13 = mean*
     mov     r14, rcx            ; r14 = var*
@@ -97,9 +97,9 @@ compute_stats:
     xorps   xmm5, xmm5          ; xmm5 = acc_var = 0.0
 
     ; Loop para calcular var, min y max del arreglo
-.stats-loop:
+.stats_loop:
     cmp     eax, r12d           ; i >= n? Termina el Loop
-    jge     .stats-done
+    jge     .stats_done
 
     movss   xmm1, [rbx + rax*4]   ; xmm1 = arr[i]
     minss   xmm2, xmm1            ; min = min(min, arr[i])
@@ -111,10 +111,10 @@ compute_stats:
     addss   xmm5, xmm6            ; acc_var += (arr[i] - mean)^2
 
     inc     eax
-    jmp     .stats-loop
+    jmp     .stats_loop
 
     ; Fin del Loop, calcular var final y guarda resultados
-.stats-done:
+.stats_done:
     divss   xmm5, xmm4          ; xmm5 = var = acc_var / float(n)
     movss   [r13], xmm0         ; *mean = mean
     movss   [r14], xmm5         ; *var = var
