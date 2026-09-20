@@ -96,6 +96,7 @@ compute_stats:
     movss   xmm3, [rbx]         ; xmm3 = arr[0] inicializar max
     xorps   xmm5, xmm5          ; xmm5 = acc_var = 0.0
 
+    ; Loop para calcular var, min y max del arreglo
 .stats-loop:
     cmp     eax, r12d           ; i >= n? Termina el Loop
     jge     .stats-done
@@ -112,6 +113,7 @@ compute_stats:
     inc     eax
     jmp     .stats-loop
 
+    ; Fin del Loop, calcular var final y guarda resultados
 .stats-done:
     divss   xmm5, xmm4          ; xmm5 = var = acc_var / float(n)
     movss   [r13], xmm0         ; *mean = mean
@@ -128,6 +130,7 @@ compute_stats:
     pop     rbx
     ret
 
+    ; Caso borde: si n == 0, escriba 0.0 en mean/var/min/max.
 .stats_empty:
     xorps   xmm0, xmm0
     movss   [rdx], xmm0
