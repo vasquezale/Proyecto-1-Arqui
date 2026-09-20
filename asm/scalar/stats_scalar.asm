@@ -90,6 +90,13 @@ compute_stats:
     cvtsi2ss xmm4, r12d         ; xmm4 = float(n)
     divss   xmm0, xmm4          ; xmm0 = mean
 
+    ; Inicializar Loop para calcular var, min y max
+    xor     eax, eax            ; i = 0
+    movss   xmm2, [rbx]         ; xmm2 = arr[0] inicializar min
+    movss   xmm3, [rbx]         ; xmm3 = arr[0] inicializar max
+    xorps   xmm5, xmm5          ; xmm5 = acc_var = 0.0
+
+
 
     ; TODO: implementar el algoritmo descrito arriba.
 
