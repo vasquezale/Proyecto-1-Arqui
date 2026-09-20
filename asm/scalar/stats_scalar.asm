@@ -155,5 +155,27 @@ compute_stats:
 ; en cada iteracion desde una copia guardada en la pila.
 ; ---------------------------------------------------------------
 normalize_array:
-    ; TODO: implementar
+
+    ; Inicializar Loop
+    xor     eax, eax            ; eax = i = 0
+    movaps   xmm8, xmm0         ; xmm8 = mean
+    movaps   xmm9, xmm1         ; xmm9 = stddev
+
+    ; Revisar Caso borde: si stddev == 0.0, copie in[i] en out[i] 
+    xorps   xmm7, xmm7         ; xmm7 = 0.0
+    ucomiss xmm9, xmm7         ; comparar stddev con 0.0
+    jz      .copy_loop         ; si stddev == 0.0
+
+
+.copy_loop:
+    cmp     eax, edx              ; i >= n? Termina el Loop
+    jge     .norm_done
+
+    movss   xmm2, [rdi + rax*4]   ; xmm1 = in[i]
+    movss   [rsi + rax*4], xmm2   ; out[i] = in[i]
+
+    inc     eax
+    jmp     .copy_loop
+
+.norm_done:
     ret
