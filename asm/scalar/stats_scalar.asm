@@ -112,15 +112,12 @@ compute_stats:
     inc     eax
     jmp     .stats-loop
 
-    ; TODO: implementar el algoritmo descrito arriba.
-
-    ; --- placeholder temporal: elimine estas lineas al implementar ---
-    xorps   xmm0, xmm0
-    movss   [rdx], xmm0
-    movss   [rcx], xmm0
-    movss   [r8], xmm0
-    movss   [r9], xmm0
-    ; --- fin placeholder ---
+.stats-done:
+    divss   xmm5, xmm4          ; xmm5 = var = acc_var / float(n)
+    movss   [r13], xmm0         ; *mean = mean
+    movss   [r14], xmm5         ; *var = var
+    movss   [r15], xmm2         ; *min = min
+    movss   [rbp], xmm3         ; *max = max
 
     add     rsp, 8
     pop     r15
