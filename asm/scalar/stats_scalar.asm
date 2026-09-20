@@ -166,6 +166,18 @@ normalize_array:
     ucomiss xmm9, xmm7         ; comparar stddev con 0.0
     jz      .copy_loop         ; si stddev == 0.0
 
+    ; Loop para normalizar el arreglo
+.norm_loop:
+    cmp     eax, edx            ; i < n?
+    jge     .norm_done
+
+    movss   xmm2, [rdi + rax*4] ; xmm2 = in[i]
+    subss   xmm2, xmm8          ; xmm2 = in[i] - mean
+    divss   xmm2, xmm9          ; xmm2 = (in[i] - mean) / stddev
+    movss   [rsi + rax*4], xmm2 ; out[i] = xmm2
+
+    inc     eax                 ; i++
+    jmp     .norm_loop
 
 .copy_loop:
     cmp     eax, edx              ; i >= n? Termina el Loop
