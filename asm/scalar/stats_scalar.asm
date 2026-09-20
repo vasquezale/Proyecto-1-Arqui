@@ -63,6 +63,10 @@ sum_array:
 ;   5) No olvide restaurar los registros callee-saved en el epilogo.
 ; ---------------------------------------------------------------
 compute_stats:
+
+    test esi, esi
+    jz      .stats_empty
+
     push    rbx
     push    r12
     push    r13
@@ -84,6 +88,14 @@ compute_stats:
     pop     r13
     pop     r12
     pop     rbx
+    ret
+
+.stats_empty:
+    xorps   xmm0, xmm0
+    movss   [rdx], xmm0
+    movss   [rcx], xmm0
+    movss   [r8], xmm0
+    movss   [r9], xmm0
     ret
 
 ; ---------------------------------------------------------------
