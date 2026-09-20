@@ -75,6 +75,16 @@ compute_stats:
     push    r15
     sub     rsp, 8               ; alinear stack a 16 bytes antes de call
 
+    ; Guardar argumentos en registros para preservarlos con la llamada a sum_array
+    mov     rbx, rdi            ; rdx = arr
+    mov     r12d, esi           ; r12 = n,     r12d usa la parte baja de r12 para operaciones de 32 bits      
+    mov     r13, rdx            ; r13 = mean*
+    mov     r14, rcx            ; r14 = var*
+    mov     r15, r8             ; r15 = min*
+    mov     rbp, r9             ; rbp = max*
+
+
+
     ; TODO: implementar el algoritmo descrito arriba.
 
     ; --- placeholder temporal: elimine estas lineas al implementar ---
