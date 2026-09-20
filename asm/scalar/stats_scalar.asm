@@ -96,6 +96,15 @@ compute_stats:
     movss   xmm3, [rbx]         ; xmm3 = arr[0] inicializar max
     xorps   xmm5, xmm5          ; xmm5 = acc_var = 0.0
 
+.stats-loop:
+    cmp     eax, r12d           ; i >= n? Termina el Loop
+    jge     .stats-done
+
+    movss   xmm1, [rbx + rax*4]   ; xmm1 = arr[i]
+    minss   xmm2, xmm1            ; min = min(min, arr[i])
+    maxss   xmm3, xmm1            ; max = max(max, arr[i])
+
+    
 
 
     ; TODO: implementar el algoritmo descrito arriba.
