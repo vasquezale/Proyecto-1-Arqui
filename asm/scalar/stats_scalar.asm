@@ -68,10 +68,12 @@ compute_stats:
     jz      .stats_empty
 
     push    rbx
+    push    rbp
     push    r12
     push    r13
     push    r14
     push    r15
+    sub     rsp, 8               ; alinear stack a 16 bytes antes de call
 
     ; TODO: implementar el algoritmo descrito arriba.
 
@@ -83,10 +85,12 @@ compute_stats:
     movss   [r9], xmm0
     ; --- fin placeholder ---
 
+    add     rsp, 8
     pop     r15
     pop     r14
     pop     r13
     pop     r12
+    pop     rbp
     pop     rbx
     ret
 
