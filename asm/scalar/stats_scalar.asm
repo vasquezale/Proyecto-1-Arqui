@@ -104,8 +104,13 @@ compute_stats:
     minss   xmm2, xmm1            ; min = min(min, arr[i])
     maxss   xmm3, xmm1            ; max = max(max, arr[i])
 
-    
+    movss   xmm6, xmm1            ; xmm6 = arr[i]
+    subss   xmm6, xmm0            ; xmm6 = arr[i] - mean
+    mulss   xmm6, xmm6            ; xmm6 = (arr[i] - mean)^2
+    addss   xmm5, xmm6            ; acc_var += (arr[i] - mean)^2
 
+    inc     eax
+    jmp     .stats-loop
 
     ; TODO: implementar el algoritmo descrito arriba.
 
