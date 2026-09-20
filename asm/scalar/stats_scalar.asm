@@ -83,6 +83,12 @@ compute_stats:
     mov     r15, r8             ; r15 = min*
     mov     rbp, r9             ; rbp = max*
 
+    ; Calcular mean = sum(arr, n) / n
+    mov     rdi, rbx            ; sum_array espera arr en rdi por ABI
+    mov     esi, r12d           ; sum_array espera n en esi 
+    call    sum_array           ; xmm0 = sum
+    cvtsi2ss xmm4, r12d         ; xmm4 = float(n)
+    divss   xmm0, xmm4          ; xmm0 = mean
 
 
     ; TODO: implementar el algoritmo descrito arriba.
