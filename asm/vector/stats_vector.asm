@@ -145,6 +145,20 @@ compute_stats:
     jmp     .stats_vec_loop
 
 
+.stats_reduce_vec:
+
+    ; Reducir acc_var: 8 carriles -> xmm5[0].
+    vextractf128 xmm5, ymm7, 1
+    vaddps  xmm5, xmm5, xmm7
+    vhaddps xmm5, xmm5, xmm5
+    vhaddps xmm5, xmm5, xmm5
+
+    
+
+
+
+
+
 .stats_no_vec_blocks:
     ; Para n < 8 no hubo bloque vectorial real: iniciar escalares.
     vxorps  xmm5, xmm5, xmm5       ; xmm5 = acc_var escalar = 0
