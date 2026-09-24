@@ -88,6 +88,9 @@ sum_array:
 ;      registros YMM.
 ; ---------------------------------------------------------------
 compute_stats:
+    test    esi, esi
+    jz      .stats_empty
+
     push    rbx
     push    r12
     push    r13
@@ -109,6 +112,15 @@ compute_stats:
     pop     r13
     pop     r12
     pop     rbx
+    vzeroupper
+    ret
+
+.stats_empty:
+    vxorps  xmm0, xmm0, xmm0
+    vmovss  [rdx], xmm0
+    vmovss  [rcx], xmm0
+    vmovss  [r8], xmm0
+    vmovss  [r9], xmm0
     vzeroupper
     ret
 
