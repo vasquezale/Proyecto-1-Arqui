@@ -131,7 +131,18 @@ compute_stats:
     test    ecx, ecx                ; lim_vectorial == 0?
     jle     .stats_no_vec_blocks
 
-
+; Loop vectorial: 8 elementos por iteracion
+.stats_vec_loop:
+    cmp     eax, ecx
+    jge     .stats_reduce_vec
+    vmovups ymm8, [rbx + rax*4]    ; ymm8 = arr[i..i+7]
+    vminps  ymm10, ymm10, ymm8     ; min por carril
+    vmaxps  ymm11, ymm11, ymm8     ; max por carril
+    vsubps  ymm9, ymm8, ymm6       ; diff = x - mean
+    vmulps  ymm9, ymm9, ymm9       ; diff^2
+    vaddps  ymm7, ymm7, ymm9       ; acumula varianza parcial por carril
+    add     eax, 8
+    jmp     .stats_vec_loop
 
 
 .stats_no_vec_blocks:
