@@ -91,26 +91,61 @@ compute_stats:
     test    esi, esi
     jz      .stats_empty
 
+    ; Guardar registros callee-saved
+    ; para preservar estados
     push    rbx
+    push    rbp
     push    r12
     push    r13
     push    r14
     push    r15
+    sub     rsp, 8               ; alinear stack a 16 bytes antes de call
 
-    ; TODO: implementar el algoritmo descrito arriba.
+    ; Guardar argumentos en registros callee-saved antes de call sum_array.
+    mov     rbx, rdi               ; rbx = arr
+    mov     r12d, esi              ; r12d = n
+    mov     r13, rdx               ; r13 = mean*
+    mov     r14, rcx               ; r14 = var*
+    mov     r15, r8                ; r15 = min*
+    mov     rbp, r9                ; rbp = max*
 
-    ; --- placeholder temporal: elimine estas lineas al implementar ---
-    vxorps  xmm0, xmm0, xmm0
-    vmovss  [rdx], xmm0
-    vmovss  [rcx], xmm0
-    vmovss  [r8], xmm0
-    vmovss  [r9], xmm0
-    ; --- fin placeholder ---
+    ; Preparar argumentos para llamar a sum_array
+    mov     rdi, rbx
+    mov     esi, r12d
+    call    sum_array              ; xmm0 = sum
 
+    ; Calcular mean = sum / n
+    vcvtsi2ss xmm4, xmm4, r12d     ; xmm4 = float(n)
+    vdivss  xmm0, xmm0, xmm4       ; xmm0 = sum / float(n) = mean
+    vmovaps xmm12, xmm0            ; xmm12 = mean, guardar copia
+    vbroadcastss ymm6, xmm0        ; ymm6 = xmm0[0] = mean repetido en 8 carriles
+
+    ; Preparar acumuladores vectoriales.
+    xor     eax, eax               ; eax = i = 0
+    mov     ecx, r12d
+    and     ecx, ~7                ; ecx = limite vectorial
+    vxorps  ymm7, ymm7, ymm7       ; ymm7 = acc_var vectorial = 0
+    vbroadcastss ymm10, [rbx]      ; ymm10 = min vectorial inicial = arr[0]
+    vbroadcastss ymm11, [rbx]      ; ymm11 = max vectorial inicial = arr[0]
+
+    test    ecx, ecx                ; lim_vectorial == 0?
+    jle     .stats_no_vec_blocks
+
+
+
+
+.stats_no_vec_blocks:
+    ; Para n < 8 no hubo bloque vectorial real: iniciar escalares.
+    vxorps  xmm5, xmm5, xmm5       ; xmm5 = acc_var escalar = 0
+    vmovss  xmm2, [rbx]            ; xmm2 = min = arr[0]
+    vmovss  xmm3, [rbx]            ; xmm3 = max = arr[0]
+
+    add     rsp, 8
     pop     r15
     pop     r14
     pop     r13
     pop     r12
+    pop     rbp
     pop     rbx
     vzeroupper
     ret
