@@ -171,14 +171,30 @@ compute_stats:
     jmp     .stats_scalar_tail
 
 
-
-
-
 .stats_no_vec_blocks:
     ; Para n < 8 no hubo bloque vectorial real: iniciar escalares.
     vxorps  xmm5, xmm5, xmm5       ; xmm5 = acc_var escalar = 0
     vmovss  xmm2, [rbx]            ; xmm2 = min = arr[0]
     vmovss  xmm3, [rbx]            ; xmm3 = max = arr[0]
+
+    ; Bucle escalar para el remanente 
+.stats_scalar_tail:
+    cmp     eax, r12d
+    jge     .stats_done
+    vmovss  xmm1, [rbx + rax*4]    ; xmm1 = x = arr[i]
+    vminss  xmm2, xmm2, xmm1       ; min = min(min, x)
+    vmaxss  xmm3, xmm3, xmm1       ; max = max(max, x)
+    vsubss  xmm6, xmm1, xmm12      ; xmm6 = x - mean
+    vmulss  xmm6, xmm6, xmm6       ; xmm6 = (x - mean)^2
+    vaddss  xmm5, xmm5, xmm6       ; acc_var += (x - mean)^2
+    inc     eax
+    jmp     .stats_scalar_tail
+
+
+
+
+
+
 
     add     rsp, 8
     pop     r15
