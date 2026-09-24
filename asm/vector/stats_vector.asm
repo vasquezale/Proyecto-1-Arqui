@@ -153,7 +153,13 @@ compute_stats:
     vhaddps xmm5, xmm5, xmm5
     vhaddps xmm5, xmm5, xmm5
 
-    
+    ; Reducir min: 8 carriles -> xmm2[0].
+    vextractf128 xmm2, ymm10, 1
+    vminps  xmm2, xmm2, xmm10
+    vpermilps xmm1, xmm2, 0b10110001
+    vminps  xmm2, xmm2, xmm1
+    vpermilps xmm1, xmm2, 0b01001110
+    vminps  xmm2, xmm2, xmm1
 
 
 
