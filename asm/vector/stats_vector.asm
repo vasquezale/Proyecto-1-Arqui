@@ -161,6 +161,15 @@ compute_stats:
     vpermilps xmm1, xmm2, 0b01001110
     vminps  xmm2, xmm2, xmm1
 
+    ; Reducir max: 8 carriles -> xmm3[0].
+    vextractf128 xmm3, ymm11, 1
+    vmaxps  xmm3, xmm3, xmm11
+    vpermilps xmm1, xmm3, 0b10110001
+    vmaxps  xmm3, xmm3, xmm1
+    vpermilps xmm1, xmm3, 0b01001110
+    vmaxps  xmm3, xmm3, xmm1
+    jmp     .stats_scalar_tail
+
 
 
 
