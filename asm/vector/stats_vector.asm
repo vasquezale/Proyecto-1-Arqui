@@ -190,11 +190,13 @@ compute_stats:
     inc     eax
     jmp     .stats_scalar_tail
 
-
-
-
-
-
+    ; Guardar resultados en las direcciones de puntero
+.stats_done:
+    vdivss  xmm5, xmm5, xmm4       ; var = acc_var / float(n)
+    vmovss  [r13], xmm12           ; *mean = mean
+    vmovss  [r14], xmm5            ; *var = var
+    vmovss  [r15], xmm2            ; *min = min
+    vmovss  [rbp], xmm3            ; *max = max
 
     add     rsp, 8
     pop     r15
