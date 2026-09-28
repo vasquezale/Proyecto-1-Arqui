@@ -18,13 +18,8 @@
 ; float sum_array(const float *arr, int n)
 ;   rdi = arr, esi = n -> retorna la suma en xmm0
 ;
-; IMPLEMENTADA COMO EJEMPLO. Fijense especialmente en:
-;   (1) como se calcula cuantos elementos entran en bucles de 8
-;       ("and ecx, ~7" redondea n hacia abajo al multiplo de 8),
-;   (2) la REDUCCION HORIZONTAL para pasar de 8 sumas parciales
-;       (un YMM) a un unico escalar,
-;   (3) el BUCLE ESCALAR DE CIERRE para el remanente (n % 8 != 0).
-; Reutilicen este mismo patron en compute_stats y normalize_array.
+; Recorre bloques alineados de 8 floats con AVX2, reduce horizontalmente
+; las 8 sumas parciales y termina con un bucle escalar para el remanente.
 ; ---------------------------------------------------------------
 sum_array:
     xor     eax, eax               ; eax = i = 0
@@ -69,30 +64,19 @@ sum_array:
 ;   rdi = arr, esi = n, rdx = mean*, rcx = var*, r8 = min*, r9 = max*
 ;
 ; Implementacion:
-;   1) mean = suma(arr) / n (puede llamar a sum_array; recuerde
-;      guardar arr/n/mean*/var*/min*/max* en registros callee-saved
-;      antes, porque la llamada destruye registros caller-saved).
-;   2) Segunda pasada VECTORIZADA para acumular sum((x-mean)^2):
-;        - "broadcast" de mean a los 8 carriles con vbroadcastss.
-;        - vsubps + vmulps (o vfmadd231ps si quieren ir mas alla)
-;          para acumular los cuadrados de las diferencias,
-;        - misma reduccion horizontal que en sum_array,
-;        - bucle escalar para el remanente (subss/mulss/addss).
-;   3) Min/max VECTORIZADOS con vminps/vmaxps a lo largo del bucle
-;      principal, reduccion final con vextractf128 + vminps/vmaxps
-;      (y shuffles si quieren reducir los 4 restantes a 1), mas
-;      bucle escalar de cierre con minss/maxss o comiss.
-;   4) Guarde los resultados en [rdx]=mean, [rcx]=var, [r8]=min,
-;      [r9]=max. Si n == 0, escriba 0.0 en los cuatro.
-;   5) 'vzeroupper' antes de cualquier 'ret' en una funcion que usa
-;      registros YMM.
+;   1) Calcula mean = sum_array(arr, n) / n.
+;   2) Recorre bloques de 8 floats para acumular sum((x - mean)^2)
+;      en carriles vectoriales y actualizar min/max por carril.
+;   3) Reduce horizontalmente varianza parcial, min y max a escalares.
+;   4) Procesa el remanente con instrucciones escalares.
+;   5) Guarda [rdx]=mean, [rcx]=var, [r8]=min, [r9]=max.
+;      Si n == 0, escribe 0.0 en los cuatro resultados.
 ; ---------------------------------------------------------------
 compute_stats:
     test    esi, esi
     jz      .stats_empty
 
-    ; Guardar registros callee-saved
-    ; para preservar estados
+    ; Guardar registros callee-saved usados por la funcion.
     push    rbx
     push    rbp
     push    r12
@@ -109,7 +93,7 @@ compute_stats:
     mov     r15, r8                ; r15 = min*
     mov     rbp, r9                ; rbp = max*
 
-    ; Preparar argumentos para llamar a sum_array
+    ; Preparar argumentos para llamar a sum_array.
     mov     rdi, rbx
     mov     esi, r12d
     call    sum_array              ; xmm0 = sum
@@ -177,7 +161,7 @@ compute_stats:
     vmovss  xmm2, [rbx]            ; xmm2 = min = arr[0]
     vmovss  xmm3, [rbx]            ; xmm3 = max = arr[0]
 
-    ; Bucle escalar para el remanente 
+    ; Bucle escalar para el remanente.
 .stats_scalar_tail:
     cmp     eax, r12d
     jge     .stats_done
@@ -226,15 +210,10 @@ compute_stats:
 ;   Caso borde: si stddev == 0.0, copie in[i] en out[i] tal cual.
 ;
 ; Implementacion:
-;   - "Broadcast" mean y stddev a registros YMM con vbroadcastss
-;     (guarde antes xmm0/xmm1 en otros registros o en la pila, ya
-;     que planea usar xmm0/xmm1 tambien como temporales del bucle).
-;   - Bucle vectorial de 8 en 8: vmovaps carga, vsubps,
-;     vdivps (o vmulps por el reciproco de stddev si quieren
-;     optimizar), vmovaps guarda. El driver alinea in/out a 32 bytes.
-;   - Bucle escalar de cierre para el remanente (n % 8), igual que
-;     en sum_array.
-;   - 'vzeroupper' antes del 'ret'.
+;   - Si stddev == 0.0, copia in -> out para evitar division por cero.
+;   - Si stddev != 0.0, replica mean/stddev en registros YMM y normaliza
+;     bloques alineados de 8 floats con vmovaps, vsubps y vdivps.
+;   - Los elementos restantes se procesan con instrucciones escalares.
 ; ---------------------------------------------------------------
 normalize_array:
     xor     eax, eax               ; eax = i = 0

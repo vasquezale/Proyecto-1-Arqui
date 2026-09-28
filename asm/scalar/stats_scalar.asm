@@ -20,9 +20,7 @@
 ;   rdi = arr, esi = n
 ;   retorna la suma en xmm0
 ;
-; IMPLEMENTADA COMO EJEMPLO: estudien este patron (recorrido,
-; acumulador, condicion de salida) antes de escribir compute_stats
-; y normalize_array.
+; Recorre el arreglo elemento por elemento y acumula la suma en xmm0.
 ; ---------------------------------------------------------------
 sum_array:
     xor     eax, eax           ; eax = i = 0
@@ -48,19 +46,11 @@ sum_array:
 ;   Caso borde: si n == 0, escriba 0.0 en mean/var/min/max.
 ;
 ; Implementacion:
-;   1) Calcular mean = suma(arr) / n. Puede reutilizar sum_array con
-;      'call sum_array', pero recuerde que eso destruye los
-;      registros caller-saved (rax, rcx, rdx, rsi, rdi, r8-r11):
-;      guarde arr/n/mean*/var*/min*/max* en registros callee-saved
-;      (rbx, r12-r15) ANTES de llamar.
-;   2) Recorrer el arreglo una segunda vez para acumular
-;      sum((x - mean)^2) y obtener var = esa suma / n.
-;   3) Recorrer el arreglo (puede combinarlo con el paso 1) llevando
-;      min y max con comiss + saltos condicionales (ja/jb, etc.)
-;      o con las instrucciones minss/maxss.
-;   4) Guardar los resultados en las direcciones recibidas por
-;      puntero: [rdx]=mean, [rcx]=var, [r8]=min, [r9]=max.
-;   5) No olvide restaurar los registros callee-saved en el epilogo.
+;   1) Calcula mean = sum_array(arr, n) / n.
+;   2) Recorre el arreglo para acumular sum((x - mean)^2).
+;   3) Actualiza min y max con minss/maxss.
+;   4) Guarda [rdx]=mean, [rcx]=var, [r8]=min, [r9]=max.
+;   5) Restaura los registros callee-saved usados por la funcion.
 ; ---------------------------------------------------------------
 compute_stats:
 
@@ -77,7 +67,7 @@ compute_stats:
 
     ; Guardar argumentos en registros para preservarlos con la llamada a sum_array
     mov     rbx, rdi            ; rbx = arr
-    mov     r12d, esi           ; r12 = n,     r12d usa la parte baja de r12 para operaciones de 32 bits      
+    mov     r12d, esi           ; r12d = n
     mov     r13, rdx            ; r13 = mean*
     mov     r14, rcx            ; r14 = var*
     mov     r15, r8             ; r15 = min*
@@ -148,10 +138,8 @@ compute_stats:
 ;   Caso borde: si stddev == 0.0, copie in[i] en out[i] tal cual
 ;   (evite division por cero).
 ;
-; Implementacion: mean (xmm0) y stddev (xmm1) se guardan en registros que no
-; se sobrescriban dentro del bucle (por ejemplo xmm8/xmm9, que en
-; System V no se usan para pasar argumentos), o vuelva a cargarlos
-; en cada iteracion desde una copia guardada en la pila.
+; Implementacion: conserva mean/stddev en xmm8/xmm9. Si stddev == 0.0,
+; copia in -> out; si no, calcula (in[i] - mean) / stddev.
 ; ---------------------------------------------------------------
 normalize_array:
 
