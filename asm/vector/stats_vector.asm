@@ -38,7 +38,7 @@ sum_array:
 .sum_vec_loop:
     cmp     eax, ecx
     jge     .sum_reduce
-    vmovups ymm1, [rdi + rax*4]    ; carga 8 floats (unaligned: siempre valido)
+    vmovaps ymm1, [rdi + rax*4]    ; carga 8 floats (unaligned: siempre valido)
     vaddps  ymm0, ymm0, ymm1       ; acumula por carril
     add     eax, 8
     jmp     .sum_vec_loop
@@ -150,10 +150,10 @@ normalize_array:
 .norm_vec_loop:
     cmp     eax, ecx                ; i >= lim_vect?
     jge     .norm_scalar_tail
-    vmovups ymm12, [rdi + rax*4]   ; ymm12 = in[i..i+7]
+    vmovaps ymm12, [rdi + rax*4]   ; ymm12 = in[i..i+7]
     vsubps  ymm12, ymm12, ymm10    ; ymm12 = in - mean
     vdivps  ymm12, ymm12, ymm11    ; ymm12 = (in - mean) / stddev
-    vmovups [rsi + rax*4], ymm12   ; out[i..i+7] = resultado
+    vmovaps [rsi + rax*4], ymm12   ; out[i..i+7] = resultado
     add     eax, 8
     jmp     .norm_vec_loop
 
@@ -172,8 +172,8 @@ normalize_array:
 .norm_copy_vec_loop:
     cmp     eax, ecx                    ; i > lim_vect?
     jge     .norm_copy_scalar_tail      ; Copia remanente escalar
-    vmovups ymm12, [rdi + rax*4]        ; ymm12 = in[i..i+7]
-    vmovups [rsi + rax*4], ymm12        ; out[i..i+7] = ymm12
+    vmovaps ymm12, [rdi + rax*4]        ; ymm12 = in[i..i+7]
+    vmovaps [rsi + rax*4], ymm12        ; out[i..i+7] = ymm12
     add     eax, 8
     jmp     .norm_copy_vec_loop
 
