@@ -7,6 +7,7 @@ NASM      := nasm
 CFLAGS    := -std=gnu11 -Wall -Wextra -O2 -g
 NASMFLAGS := -f elf64 -g -F dwarf
 LDFLAGS   := -lm
+REPS      := 30
 
 SRC_DIR    := src
 INC_DIR    := include
@@ -19,7 +20,7 @@ DRIVER_OBJ := $(OBJ_DIR)/driver.o
 SCALAR_OBJ := $(OBJ_DIR)/stats_scalar.o
 VECTOR_OBJ := $(OBJ_DIR)/stats_vector.o
 
-.PHONY: all clean check run-scalar run-vector dirs
+.PHONY: all clean check benchmark run-scalar run-vector dirs
 
 all: dirs $(BIN_DIR)/norm_scalar $(BIN_DIR)/norm_vector
 
@@ -43,6 +44,9 @@ $(VECTOR_OBJ): $(ASM_VECTOR) | dirs
 
 check: all
 	python3 tools/verify_reference.py --matrix
+
+benchmark: all
+	python3 tools/run_benchmark.py $(REPS)
 
 # Atajos de conveniencia (requieren haber generado data/input.dat)
 run-scalar: $(BIN_DIR)/norm_scalar
