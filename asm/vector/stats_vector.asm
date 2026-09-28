@@ -161,4 +161,7 @@ normalize_array:
     vmovss  [rsi + rax*4], xmm12        ; out[i] = xmm12
     inc     eax
     jmp     .norm_copy_scalar_tail
+    
+.norm_done:
+    vzeroupper
     ret
