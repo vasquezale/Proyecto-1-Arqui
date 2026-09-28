@@ -146,7 +146,16 @@ normalize_array:
     vbroadcastss ymm10, xmm0       ; ymm10 = [mean, ..., mean] en 8 carriles
     vbroadcastss ymm11, xmm1       ; ymm11 = [stddev, ..., stddev] en 8 carriles
 
-
+    ; Bucle vectorial 
+.norm_vec_loop:
+    cmp     eax, ecx                ; i >= lim_vect?
+    jge     .norm_scalar_tail
+    vmovups ymm12, [rdi + rax*4]   ; ymm12 = in[i..i+7]
+    vsubps  ymm12, ymm12, ymm10    ; ymm12 = in - mean
+    vdivps  ymm12, ymm12, ymm11    ; ymm12 = (in - mean) / stddev
+    vmovups [rsi + rax*4], ymm12   ; out[i..i+7] = resultado
+    add     eax, 8
+    jmp     .norm_vec_loop
 
 
     ; Case stddev == 0.0: copiar in -> out en vectorial
