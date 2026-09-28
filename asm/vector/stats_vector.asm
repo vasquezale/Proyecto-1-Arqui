@@ -157,6 +157,16 @@ normalize_array:
     add     eax, 8
     jmp     .norm_vec_loop
 
+    ; Bucle escalar de remanente
+.norm_scalar_tail:
+    cmp     eax, edx
+    jge     .norm_done
+    vmovss  xmm12, [rdi + rax*4]   ; xmm12 = in[i]
+    vsubss  xmm12, xmm12, xmm8     ; xmm12 = in[i] - mean
+    vdivss  xmm12, xmm12, xmm9     ; xmm12 = (in[i] - mean) / stddev
+    vmovss  [rsi + rax*4], xmm12   ; out[i] = xmm12
+    inc     eax
+    jmp     .norm_scalar_tail
 
     ; Case stddev == 0.0: copiar in -> out en vectorial
 .norm_copy_vec_loop:
