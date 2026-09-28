@@ -132,5 +132,9 @@ compute_stats:
 ;   - 'vzeroupper' antes del 'ret'.
 ; ---------------------------------------------------------------
 normalize_array:
-    ; TODO: implementar
+    xor     eax, eax               ; eax = i = 0
+    mov     ecx, edx
+    and     ecx, ~7                ; ecx = limite vectorial
+
+
     ret
