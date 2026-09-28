@@ -47,7 +47,7 @@ sum_array:
 ;   var = varianza POBLACIONAL = sum((x - mean)^2) / n
 ;   Caso borde: si n == 0, escriba 0.0 en mean/var/min/max.
 ;
-; TODO (estudiante):
+; Implementacion:
 ;   1) Calcular mean = suma(arr) / n. Puede reutilizar sum_array con
 ;      'call sum_array', pero recuerde que eso destruye los
 ;      registros caller-saved (rax, rcx, rdx, rsi, rdi, r8-r11):
@@ -148,8 +148,7 @@ compute_stats:
 ;   Caso borde: si stddev == 0.0, copie in[i] en out[i] tal cual
 ;   (evite division por cero).
 ;
-; TODO (estudiante): implementar el bucle escalar.
-; Sugerencia: guarde mean (xmm0) y stddev (xmm1) en registros que no
+; Implementacion: mean (xmm0) y stddev (xmm1) se guardan en registros que no
 ; se sobrescriban dentro del bucle (por ejemplo xmm8/xmm9, que en
 ; System V no se usan para pasar argumentos), o vuelva a cargarlos
 ; en cada iteracion desde una copia guardada en la pila.

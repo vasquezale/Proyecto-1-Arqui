@@ -1,12 +1,9 @@
-# Esqueleto de proyecto: Normalizador estadistico vectorizado (NASM + C)
+# Proyecto: Normalizador estadistico vectorizado (NASM + C)
 
-Este es el punto de partida para el proyecto "Programacion Vectorial en
-Ensamblador x86-64 (NASM/Linux)". **Aqui no esta la solucion**: contiene
-la estructura, las firmas de las funciones y **un** ejemplo completo por
-version (`sum_array`) que sirve de patron. El resto de las funciones
-(`compute_stats`, `normalize_array`) estan marcadas con `TODO` y deben
-ser implementadas por el estudiante, tanto en la version escalar como
-en la vectorial.
+Implementacion del proyecto "Programacion Vectorial en Ensamblador x86-64
+(NASM/Linux)". Incluye las versiones escalar y AVX2 de `sum_array`,
+`compute_stats` y `normalize_array`, junto con el driver C y las herramientas
+de generacion y verificacion.
 
 ## Estructura
 
@@ -79,16 +76,16 @@ python3 tools/verify_reference.py data/input.dat data/output_scalar.dat.stats.tx
 python3 tools/verify_reference.py data/input.dat data/output_vector.dat.stats.txt
 ```
 
-## Lo que debe implementar el estudiante
+## Estado de implementacion
 
-1. **`asm/scalar/stats_scalar.asm`**: completar `compute_stats` y
-   `normalize_array` con instrucciones escalares (`movss`, `addss`,
+1. **`asm/scalar/stats_scalar.asm`**: implementa `sum_array`, `compute_stats`
+   y `normalize_array` con instrucciones escalares (`movss`, `addss`,
    `subss`, `mulss`, `divss`, `sqrtss`, `comiss`, etc.).
-2. **`asm/vector/stats_vector.asm`**: completar `compute_stats` y
-   `normalize_array` con AVX2 (`vmovaps`/`vmovups`, `vaddps`, `vsubps`,
+2. **`asm/vector/stats_vector.asm`**: implementa `sum_array`, `compute_stats`
+   y `normalize_array` con AVX2 (`vmovaps`, `vaddps`, `vsubps`,
    `vmulps`, `vdivps`, `vminps`, `vmaxps`, `vbroadcastss`, reduccion
-   horizontal), **manejando el remanente** igual que en el `sum_array`
-   de ejemplo.
+   horizontal y manejo escalar del remanente). Las cargas y escrituras de
+   bloques completos usan la alineacion de 32 bytes garantizada por el driver.
 3. Generar sus propios archivos de prueba con `gen_input.py` para los
    casos borde exigidos en la propuesta (N=0, N=1, N no multiplo de 8,
    valores constantes, valores negativos/extremos).

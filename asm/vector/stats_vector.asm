@@ -68,7 +68,7 @@ sum_array:
 ;                     float *mean, float *var, float *min, float *max)
 ;   rdi = arr, esi = n, rdx = mean*, rcx = var*, r8 = min*, r9 = max*
 ;
-; TODO (estudiante):
+; Implementacion:
 ;   1) mean = suma(arr) / n (puede llamar a sum_array; recuerde
 ;      guardar arr/n/mean*/var*/min*/max* en registros callee-saved
 ;      antes, porque la llamada destruye registros caller-saved).
@@ -225,17 +225,72 @@ compute_stats:
 ;   out[i] = (in[i] - mean) / stddev
 ;   Caso borde: si stddev == 0.0, copie in[i] en out[i] tal cual.
 ;
-; TODO (estudiante):
+; Implementacion:
 ;   - "Broadcast" mean y stddev a registros YMM con vbroadcastss
 ;     (guarde antes xmm0/xmm1 en otros registros o en la pila, ya
 ;     que planea usar xmm0/xmm1 tambien como temporales del bucle).
-;   - Bucle vectorial de 8 en 8: vmovups/vmovaps carga, vsubps,
+;   - Bucle vectorial de 8 en 8: vmovaps carga, vsubps,
 ;     vdivps (o vmulps por el reciproco de stddev si quieren
-;     optimizar), vmovups/vmovaps guarda.
+;     optimizar), vmovaps guarda. El driver alinea in/out a 32 bytes.
 ;   - Bucle escalar de cierre para el remanente (n % 8), igual que
 ;     en sum_array.
 ;   - 'vzeroupper' antes del 'ret'.
 ; ---------------------------------------------------------------
 normalize_array:
-    ; TODO: implementar
+    xor     eax, eax               ; eax = i = 0
+    mov     ecx, edx
+    and     ecx, ~7                ; ecx = limite vectorial
+
+    vxorps  xmm2, xmm2, xmm2       ; xmm2 = 0.0
+    vucomiss xmm1, xmm2            ; stddev == 0.0?
+    je      .norm_copy_vec_loop
+
+    ; Caso stddev != 0.0: out[i] = (in[i] - mean) / stddev
+    vmovaps xmm8, xmm0             ; xmm8[0] = mean escalar
+    vmovaps xmm9, xmm1             ; xmm9[0] = stddev escalar
+    vbroadcastss ymm10, xmm0       ; ymm10 = [mean, ..., mean] en 8 carriles
+    vbroadcastss ymm11, xmm1       ; ymm11 = [stddev, ..., stddev] en 8 carriles
+
+    ; Bucle vectorial
+.norm_vec_loop:
+    cmp     eax, ecx                ; i >= lim_vect?
+    jge     .norm_scalar_tail
+    vmovaps ymm12, [rdi + rax*4]   ; ymm12 = in[i..i+7]
+    vsubps  ymm12, ymm12, ymm10    ; ymm12 = in - mean
+    vdivps  ymm12, ymm12, ymm11    ; ymm12 = (in - mean) / stddev
+    vmovaps [rsi + rax*4], ymm12   ; out[i..i+7] = resultado
+    add     eax, 8
+    jmp     .norm_vec_loop
+
+    ; Bucle escalar de remanente
+.norm_scalar_tail:
+    cmp     eax, edx
+    jge     .norm_done
+    vmovss  xmm12, [rdi + rax*4]   ; xmm12 = in[i]
+    vsubss  xmm12, xmm12, xmm8     ; xmm12 = in[i] - mean
+    vdivss  xmm12, xmm12, xmm9     ; xmm12 = (in[i] - mean) / stddev
+    vmovss  [rsi + rax*4], xmm12   ; out[i] = xmm12
+    inc     eax
+    jmp     .norm_scalar_tail
+
+    ; Caso stddev == 0.0: copiar in -> out en vectorial
+.norm_copy_vec_loop:
+    cmp     eax, ecx                    ; i >= lim_vect?
+    jge     .norm_copy_scalar_tail      ; Copia remanente escalar
+    vmovaps ymm12, [rdi + rax*4]        ; ymm12 = in[i..i+7]
+    vmovaps [rsi + rax*4], ymm12        ; out[i..i+7] = ymm12
+    add     eax, 8
+    jmp     .norm_copy_vec_loop
+
+    ; Copia escalar del remanente
+.norm_copy_scalar_tail:
+    cmp     eax, edx                    ; i >= n?
+    jge     .norm_done
+    vmovss  xmm12, [rdi + rax*4]        ; xmm12 = in[i]
+    vmovss  [rsi + rax*4], xmm12        ; out[i] = xmm12
+    inc     eax
+    jmp     .norm_copy_scalar_tail
+
+.norm_done:
+    vzeroupper
     ret
