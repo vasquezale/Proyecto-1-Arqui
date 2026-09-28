@@ -136,5 +136,8 @@ normalize_array:
     mov     ecx, edx
     and     ecx, ~7                ; ecx = limite vectorial
 
+    vxorps  xmm2, xmm2, xmm2       ; xmm2 = 0.0
+    vucomiss xmm1, xmm2            ; stddev == 0.0?
+    je      .norm_copy_vec_loop
 
     ret
