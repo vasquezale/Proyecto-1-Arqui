@@ -38,7 +38,7 @@ sum_array:
 .sum_vec_loop:
     cmp     eax, ecx
     jge     .sum_reduce
-    vmovups ymm1, [rdi + rax*4]    ; carga 8 floats (unaligned: siempre valido)
+    vmovaps ymm1, [rdi + rax*4]    ; carga alineada: base 32 B + avance de 32 B
     vaddps  ymm0, ymm0, ymm1       ; acumula por carril
     add     eax, 8
     jmp     .sum_vec_loop
@@ -135,7 +135,7 @@ compute_stats:
 .stats_vec_loop:
     cmp     eax, ecx
     jge     .stats_reduce_vec
-    vmovups ymm8, [rbx + rax*4]    ; ymm8 = arr[i..i+7]
+    vmovaps ymm8, [rbx + rax*4]    ; ymm8 = arr[i..i+7], direccion alineada a 32 B
     vminps  ymm10, ymm10, ymm8     ; min por carril
     vmaxps  ymm11, ymm11, ymm8     ; max por carril
     vsubps  ymm9, ymm8, ymm6       ; diff = x - mean
