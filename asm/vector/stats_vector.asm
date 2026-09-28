@@ -140,6 +140,11 @@ normalize_array:
     vucomiss xmm1, xmm2            ; stddev == 0.0?
     je      .norm_copy_vec_loop
 
+    ; Case stddev != 0.0: out[i] = (in[i] - mean) / stddev
+    vmovaps xmm8, xmm0             ; xmm8[0] = mean escalar 
+    vmovaps xmm9, xmm1             ; xmm9[0] = stddev escalar 
+    vbroadcastss ymm10, xmm0       ; ymm10 = [mean, ..., mean] en 8 carriles
+    vbroadcastss ymm11, xmm1       ; ymm11 = [stddev, ..., stddev] en 8 carriles
 
 
 
