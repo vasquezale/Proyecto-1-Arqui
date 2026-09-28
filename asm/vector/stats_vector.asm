@@ -144,7 +144,7 @@ normalize_array:
 
 
 
-    ; Case stddev == 0.0: copiar in -> out 
+    ; Case stddev == 0.0: copiar in -> out en vectorial
 .norm_copy_vec_loop:
     cmp     eax, ecx                    ; i > lim_vect?
     jge     .norm_copy_scalar_tail      ; Copia remanente escalar
@@ -153,4 +153,12 @@ normalize_array:
     add     eax, 8
     jmp     .norm_copy_vec_loop
 
+    ; Copia Escalar Remante
+.norm_copy_scalar_tail:
+    cmp     eax, edx                    ; i >= n?
+    jge     .norm_done
+    vmovss  xmm12, [rdi + rax*4]        ; xmm12 = in[i]
+    vmovss  [rsi + rax*4], xmm12        ; out[i] = xmm12
+    inc     eax
+    jmp     .norm_copy_scalar_tail
     ret
