@@ -10,8 +10,12 @@ contra la referencia esperada de normalize_array.
 Uso:
     python3 verify_reference.py <input.dat> <output.stats.txt> [tolerancia]
     python3 verify_reference.py <input.dat> <output.stats.txt> <output.dat> [tolerancia]
+    python3 verify_reference.py --matrix [tolerancia]
 """
+import os
+import random
 import struct
+import subprocess
 import sys
 import math
 
@@ -54,6 +58,26 @@ def reference_stats(values):
     return total, mean, var, stddev, min(values), max(values)
 
 
+def gen_values(n, mode, seed):
+    rng = random.Random(seed)
+    if mode == "random":
+        return [rng.uniform(-100.0, 100.0) for _ in range(n)]
+    if mode == "constant":
+        return [5.0 for _ in range(n)]
+    if mode == "edge":
+        base = [-1e6, 1e6, 0.0, -0.0001, 0.0001, -1.0, 1.0]
+        return [base[i % len(base)] for i in range(n)]
+    raise ValueError(f"modo desconocido: {mode}")
+
+
+def write_dat(path, values):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "wb") as f:
+        f.write(struct.pack("<i", len(values)))
+        if values:
+            f.write(struct.pack(f"<{len(values)}f", *values))
+
+
 def rel_error(a, b):
     if abs(b) < 1e-12:
         return abs(a - b)
@@ -92,15 +116,12 @@ def parse_args(argv):
     return input_path, summary_path, output_path, tol
 
 
-def check_normalized_output(input_values, output_path, mean, stddev, tol):
+def normalized_result(input_values, output_path, mean, stddev, tol):
     out_n, out_values = read_input(output_path)
     in_n = len(input_values)
 
     if out_n != in_n:
-        print()
-        print("Verificacion de normalize_array:")
-        print(f"N de salida esperado={in_n}, obtenido={out_n}  FALLA")
-        return False
+        return False, in_n, 0.0, -1, 0.0, 0.0, out_n
 
     max_err = 0.0
     max_idx = -1
@@ -118,8 +139,18 @@ def check_normalized_output(input_values, output_path, mean, stddev, tol):
             max_val = val
 
     ok = max_err <= tol
+    return ok, in_n, max_err, max_idx, max_ref, max_val, out_n
+
+
+def check_normalized_output(input_values, output_path, mean, stddev, tol):
+    ok, in_n, max_err, max_idx, max_ref, max_val, out_n = normalized_result(
+        input_values, output_path, mean, stddev, tol
+    )
     print()
     print("Verificacion de normalize_array:")
+    if out_n != in_n:
+        print(f"N de salida esperado={in_n}, obtenido={out_n}  FALLA")
+        return False
     print(f"{'n':<12}{in_n:>12}")
     print(f"{'max_error':<12}{max_err:>12.6g}")
     if max_idx >= 0:
@@ -131,9 +162,7 @@ def check_normalized_output(input_values, output_path, mean, stddev, tol):
     return ok
 
 
-def main():
-    input_path, summary_path, output_path, tol = parse_args(sys.argv)
-
+def verify_reference(input_path, summary_path, output_path, tol, quiet=False):
     n, values = read_input(input_path)
     ref_sum, ref_mean, ref_var, ref_std, ref_min, ref_max = reference_stats(values)
     got = read_summary(summary_path)
@@ -149,20 +178,99 @@ def main():
     ]
 
     all_ok = True
-    print(f"{'campo':<10}{'referencia':>15}{'obtenido':>15}{'error rel.':>15}  resultado")
+    if not quiet:
+        print(f"{'campo':<10}{'referencia':>15}{'obtenido':>15}{'error rel.':>15}  resultado")
     for name, ref, val in checks:
         err = abs(val - ref) if name == "n" else rel_error(val, ref)
         ok = (err == 0) if name == "n" else (err <= tol)
         all_ok = all_ok and ok
-        status = "OK" if ok else "FALLA"
-        print(f"{name:<10}{ref:>15.6f}{val:>15.6f}{err:>15.6g}  {status}")
+        if not quiet:
+            status = "OK" if ok else "FALLA"
+            print(f"{name:<10}{ref:>15.6f}{val:>15.6f}{err:>15.6g}  {status}")
 
     if output_path is not None:
-        all_ok = check_normalized_output(values, output_path, ref_mean, ref_std, tol) and all_ok
+        if quiet:
+            norm_ok = normalized_result(values, output_path, ref_mean, ref_std, tol)[0]
+        else:
+            norm_ok = check_normalized_output(values, output_path, ref_mean, ref_std, tol)
+        all_ok = norm_ok and all_ok
+
+    if not quiet:
+        print()
+        print("RESULTADO GENERAL:", "PASA" if all_ok else "FALLA")
+    return all_ok
+
+
+def run_command(cmd):
+    return subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+def run_matrix(tol):
+    cases = [
+        ("empty", 0, "random", 1000),
+        ("n1", 1, "random", 1001),
+        ("n7", 7, "random", 1007),
+        ("n8", 8, "random", 1008),
+        ("n15", 15, "random", 1015),
+        ("n16", 16, "random", 1016),
+        ("n1000", 1000, "random", 2000),
+        ("constant16", 16, "constant", 0),
+        ("edge15", 15, "edge", 0),
+        ("edge1001", 1001, "edge", 0),
+    ]
+    versions = [
+        ("scalar", "bin/norm_scalar"),
+        ("vector", "bin/norm_vector"),
+    ]
+
+    all_ok = True
+    results = []
+    print("Generando entradas y verificando matriz de correctud...")
+    for case_name, n, mode, seed in cases:
+        input_path = f"data/check_{case_name}.dat"
+        write_dat(input_path, gen_values(n, mode, seed))
+
+        row = {"case": case_name}
+        for version, binary in versions:
+            output_path = f"data/check_output_{version}_{case_name}.dat"
+            stats_path = f"{output_path}.stats.txt"
+            proc = run_command([f"./{binary}", input_path, output_path, "1"])
+            if proc.returncode != 0:
+                row[version] = "FALLA"
+                all_ok = False
+                print()
+                print(f"Fallo ejecutando {binary} para caso {case_name}:")
+                if proc.stdout:
+                    print(proc.stdout)
+                if proc.stderr:
+                    print(proc.stderr)
+                continue
+
+            ok = verify_reference(input_path, stats_path, output_path, tol, quiet=True)
+            row[version] = "PASA" if ok else "FALLA"
+            all_ok = all_ok and ok
+            if not ok:
+                print()
+                print(f"Detalle de falla: caso={case_name}, version={version}")
+                verify_reference(input_path, stats_path, output_path, tol, quiet=False)
+        results.append(row)
 
     print()
+    print(f"{'caso':<14}{'scalar':>10}{'vector':>10}")
+    for row in results:
+        print(f"{row['case']:<14}{row.get('scalar', 'FALLA'):>10}{row.get('vector', 'FALLA'):>10}")
+    print()
     print("RESULTADO GENERAL:", "PASA" if all_ok else "FALLA")
-    sys.exit(0 if all_ok else 1)
+    return all_ok
+
+
+def main():
+    if len(sys.argv) >= 2 and sys.argv[1] == "--matrix":
+        tol = float(sys.argv[2]) if len(sys.argv) >= 3 else 1e-4
+        sys.exit(0 if run_matrix(tol) else 1)
+
+    input_path, summary_path, output_path, tol = parse_args(sys.argv)
+    sys.exit(0 if verify_reference(input_path, summary_path, output_path, tol) else 1)
 
 
 if __name__ == "__main__":

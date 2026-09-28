@@ -19,7 +19,7 @@ DRIVER_OBJ := $(OBJ_DIR)/driver.o
 SCALAR_OBJ := $(OBJ_DIR)/stats_scalar.o
 VECTOR_OBJ := $(OBJ_DIR)/stats_vector.o
 
-.PHONY: all clean run-scalar run-vector dirs
+.PHONY: all clean check run-scalar run-vector dirs
 
 all: dirs $(BIN_DIR)/norm_scalar $(BIN_DIR)/norm_vector
 
@@ -40,6 +40,9 @@ $(SCALAR_OBJ): $(ASM_SCALAR) | dirs
 
 $(VECTOR_OBJ): $(ASM_VECTOR) | dirs
 	$(NASM) $(NASMFLAGS) $< -o $@
+
+check: all
+	python3 tools/verify_reference.py --matrix
 
 # Atajos de conveniencia (requieren haber generado data/input.dat)
 run-scalar: $(BIN_DIR)/norm_scalar
