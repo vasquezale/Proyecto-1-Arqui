@@ -1,118 +1,117 @@
-# Esqueleto de proyecto: Normalizador estadistico vectorizado (NASM + C)
+# Normalizador estadistico: NASM escalar y AVX2
 
-Este es el punto de partida para el proyecto "Programacion Vectorial en
-Ensamblador x86-64 (NASM/Linux)". **Aqui no esta la solucion**: contiene
-la estructura, las firmas de las funciones y **un** ejemplo completo por
-version (`sum_array`) que sirve de patron. El resto de las funciones
-(`compute_stats`, `normalize_array`) estan marcadas con `TODO` y deben
-ser implementadas por el estudiante, tanto en la version escalar como
-en la vectorial.
+Este proyecto implementa un normalizador estadistico para arreglos de
+`float32`. Incluye dos versiones funcionalmente equivalentes de los kernels:
+
+- una version escalar, que procesa un elemento por iteracion;
+- una version vectorial AVX2, que procesa ocho elementos por iteracion y
+  maneja el remanente con un bucle escalar.
+
+El programa calcula suma, media, varianza poblacional, desviacion estandar,
+minimo y maximo. Luego genera el arreglo normalizado:
+
+```text
+out[i] = (in[i] - mean) / stddev
+```
+
+Cuando `stddev` es cero, la normalizacion copia el arreglo de entrada para
+evitar una division por cero.
 
 ## Estructura
 
-```
+```text
 .
-├── Makefile
-├── include/
-│   └── stats.h                # Firmas compartidas por ambas versiones
-├── src/
-│   └── driver.c                # Programa principal (E/S, timing, impresion)
 ├── asm/
-│   ├── scalar/
-│   │   └── stats_scalar.asm    # Version escalar (SSE escalar)
-│   └── vector/
-│       └── stats_vector.asm    # Version vectorial (AVX2)
+│   ├── scalar/stats_scalar.asm   # Kernels escalares
+│   └── vector/stats_vector.asm   # Kernels AVX2
+├── include/stats.h               # Interfaz C/NASM
+├── src/driver.c                  # E/S, memoria alineada y medicion
 ├── tools/
-│   ├── gen_input.py            # Genera archivos de entrada de prueba
-│   └── verify_reference.py     # Verifica resultados contra referencia en Python puro
-└── data/                        # Se crea al compilar: entradas/salidas .dat
+│   ├── gen_input.py              # Generacion de entradas binarias
+│   ├── verify_reference.py       # Verificacion contra referencia Python
+│   └── run_benchmark.py          # Comparacion escalar vs. vectorial
+├── data/                         # Entradas y salidas generadas
+└── Makefile
 ```
 
 ## Requisitos
 
-- Linux con CPU compatible con AVX2 (verificar con `lscpu | grep avx2`).
-- `nasm`, `gcc`, `make`, `python3`.
-- `gdb` y, opcionalmente, `perf` (paquete `linux-tools`) para las partes
-  de verificacion y medicion de rendimiento del proyecto.
+- Linux x86-64 con soporte AVX2 para ejecutar la version vectorial.
+- NASM, GCC, Make y Python 3.
 
-## Compilar
+Se puede confirmar el soporte AVX2 con:
+
+```bash
+lscpu | grep avx2
+```
+
+## Compilacion
 
 ```bash
 make
 ```
 
-Genera `bin/norm_scalar` y `bin/norm_vector`: dos ejecutables que
-comparten el mismo `driver.c` pero enlazan con kernels distintos
-(`obj/stats_scalar.o` u `obj/stats_vector.o`).
+Se generan los ejecutables:
 
-## Generar datos de prueba
-
-```bash
-python3 tools/gen_input.py 1000000 data/input.dat random
-python3 tools/gen_input.py 8       data/input_small.dat random
-python3 tools/gen_input.py 1000    data/input_constant.dat constant
-python3 tools/gen_input.py 0       data/input_empty.dat random
+```text
+bin/norm_scalar
+bin/norm_vector
 ```
 
-Genere tambien casos con `N` no multiplo de 8 (por ejemplo 7, 15, 1001)
-para probar el manejo del remanente.
+## Verificacion funcional
 
-## Ejecutar
+```bash
+make check
+```
+
+Este comando compila ambas versiones y ejecuta una matriz de casos de prueba:
+arreglo vacio, tamanos pequenos, tamanos no multiplos de ocho, bloques
+vectoriales completos, datos constantes y valores extremos.
+
+## Benchmark
+
+```bash
+make benchmark
+```
+
+El benchmark genera entradas de `N = 10^3`, `10^5`, `10^6` y `5 x 10^7`;
+ejecuta ambas versiones con 30 repeticiones por defecto; y muestra tiempo
+promedio, desviacion estandar y speedup. Los resultados se guardan en
+`data/benchmark_results.csv`.
+
+Para cambiar la cantidad de repeticiones:
+
+```bash
+make benchmark REPS=50
+```
+
+## Ejecucion manual
+
+Primero se genera una entrada:
+
+```bash
+python3 tools/gen_input.py 1000 data/input.dat random
+```
+
+Luego se ejecuta cualquiera de las versiones:
 
 ```bash
 ./bin/norm_scalar data/input.dat data/output_scalar.dat 30
 ./bin/norm_vector data/input.dat data/output_vector.dat 30
 ```
 
-El tercer argumento es el numero de repeticiones del kernel, usado para
-promediar el tiempo medido con `clock_gettime` (util para sus mediciones
-de rendimiento con distintos tamanos de `N`).
+El tercer argumento indica la cantidad de repeticiones del kernel. Cada
+ejecucion escribe los estadisticos y los tiempos en un archivo
+`*.stats.txt` asociado a la salida.
 
-Cada corrida tambien escribe `data/output_scalar.dat.stats.txt` (o
-`_vector.dat.stats.txt`) con un resumen en texto plano de los
-estadisticos y el tiempo del kernel.
-
-## Verificar correctud
+Para comprobar una ejecucion particular contra la referencia:
 
 ```bash
-python3 tools/verify_reference.py data/input.dat data/output_scalar.dat.stats.txt
-python3 tools/verify_reference.py data/input.dat data/output_vector.dat.stats.txt
+python3 tools/verify_reference.py data/input.dat data/output_vector.dat.stats.txt data/output_vector.dat
 ```
 
-## Lo que debe implementar el estudiante
-
-1. **`asm/scalar/stats_scalar.asm`**: completar `compute_stats` y
-   `normalize_array` con instrucciones escalares (`movss`, `addss`,
-   `subss`, `mulss`, `divss`, `sqrtss`, `comiss`, etc.).
-2. **`asm/vector/stats_vector.asm`**: completar `compute_stats` y
-   `normalize_array` con AVX2 (`vmovaps`/`vmovups`, `vaddps`, `vsubps`,
-   `vmulps`, `vdivps`, `vminps`, `vmaxps`, `vbroadcastss`, reduccion
-   horizontal), **manejando el remanente** igual que en el `sum_array`
-   de ejemplo.
-3. Generar sus propios archivos de prueba con `gen_input.py` para los
-   casos borde exigidos en la propuesta (N=0, N=1, N no multiplo de 8,
-   valores constantes, valores negativos/extremos).
-4. Usar GDB para inspeccionar registros YMM y memoria en un caso
-   pequeno, como se pide en la propuesta (ver ejemplo mas abajo).
-5. Medir tiempos con distintos tamanos de `N` (use el argumento de
-   repeticiones del driver) y, opcionalmente, `perf stat`.
-
-## Notas de depuracion con GDB
-
-Los binarios se compilan con simbolos de depuracion (`-g` en gcc y
-`-g -F dwarf` en nasm), por lo que se puede poner breakpoints
-directamente en las etiquetas del ensamblador:
+## Limpieza
 
 ```bash
-gdb --args ./bin/norm_vector data/input_small.dat data/out.dat 1
-(gdb) break normalize_array
-(gdb) run
-(gdb) info registers ymm0
-(gdb) stepi
-(gdb) x/8fw &out[0]
+make clean
 ```
-
-(La sintaxis exacta para imprimir un YMM completo como 8 floats
-depende de la version de GDB instalada: pruebe `info registers ymm0`,
-`print $ymm0.v8_float`, o `p/x $ymm0` segun lo que este disponible en
-su laboratorio.)
